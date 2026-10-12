@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tiny Games</title>
+<style>
+:root{--bg:#171028;--panel:#241a3d;--ink:#f6efff;--dim:#a99bc9;--pink:#ff4f8b;--mint:#3ee6b0;--sun:#ffd23f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 ui-rounded,"Trebuchet MS",system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+h1{font-size:clamp(2rem,6vw,3.4rem);margin:0 0 4px;letter-spacing:-.02em;transform:rotate(-1.5deg)}
+h1 span{color:var(--sun)}
+p.sub{margin:0 0 20px;color:var(--dim)}
+form{display:flex;gap:8px;width:min(760px,100%)}
+input{flex:1;min-width:0;padding:14px 16px;border-radius:14px;border:3px solid var(--panel);background:var(--panel);color:var(--ink);font:inherit}
+input:focus{outline:none;border-color:var(--mint)}
+button{font:inherit;font-weight:700;border:0;border-radius:14px;padding:14px 20px;background:var(--pink);color:#fff;cursor:pointer;box-shadow:0 4px 0 #b3265c}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 #b3265c}
+button:disabled{opacity:.6;cursor:wait}
+button.alt{background:var(--panel);box-shadow:0 4px 0 #120b21;padding:10px 14px}
+.gallery{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:min(760px,100%);margin:14px 0 20px}
+.chip{background:var(--panel);box-shadow:0 3px 0 #120b21;padding:8px 12px;font-weight:500;font-size:.9rem}
+.stage{width:min(900px,100%);aspect-ratio:16/10;background:#000;border-radius:16px;overflow:hidden;position:relative;border:3px solid var(--panel)}
+iframe{width:100%;height:100%;border:0;display:block}
+.msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--dim)}
+.msg b{color:var(--sun)}
+.bar{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;justify-content:center;min-height:44px}
+.err{color:#ffb3c9}
+@media (prefers-reduced-motion:no-preference){.spin{animation:s 1s linear infinite;display:inline-block}@keyframes s{to{transform:rotate(360deg)}}}
+</style></head><body>
+<h1>Tiny <span>Games</span></h1>
+<p class="sub">Describe a game. Get one you can play in about 20 seconds.</p>
+<form id="f"><input id="p" maxlength="300" placeholder="a raccoon stealing snacks from a supermarket" autofocus><button id="go">Make game</button></form>
+<div class="gallery" id="g"></div>
+<div class="stage"><iframe id="fr" title="Generated game" sandbox="allow-scripts" allow=""></iframe><div class="msg" id="m">Pick an idea above or write your own.</div></div>
+<div class="bar" id="bar"></div>
+<script>
+const IDEAS=["🦝 A raccoon stealing snacks without waking the security guard","🐸 A frog crossing a road made of moving toasters","🪿 A goose defending its park from overly friendly tourists","🧙 A wizard whose spells randomly turn enemies into household objects","🎂 A cake decorating game where the cake keeps sliding away","⛳ Mini golf where you drag to aim, with windmills and a sassy ball","🐙 An octopus making sushi during a lunch rush"];
+const $=id=>document.getElementById(id);
+const BOOT=`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src data: blob:; connect-src 'none'; form-action 'none'">
+<script>addEventListener('error',e=>parent.postMessage({tg:'err',msg:(e.message||'error')+' (line '+e.lineno+')'},'*'));addEventListener('unhandledrejection',e=>parent.postMessage({tg:'err',msg:String(e.reason)},'*'));<\/script>`;
+let last={prompt:'',html:'',err:''};
+IDEAS.forEach(t=>{const b=document.createElement('button');b.type='button';b.className='alt chip';b.textContent=t;b.onclick=()=>{$('p').value=t.replace(/^\S+\s/,'');run()};$('g').append(b)});
+$('f').onsubmit=e=>{e.preventDefault();run()};
+addEventListener('message',e=>{if(e.source===$('fr').contentWindow&&e.data?.tg==='err'&&!last.err){last.err=e.data.msg;bar(true)}});
+function bar(crashed){const b=$('bar');b.innerHTML='';
+ if(!last.html)return;
+ const add=(t,fn,c='alt')=>{const x=document.createElement('button');x.className=c;x.textContent=t;x.onclick=fn;b.append(x)};
+ if(crashed)add('Game crashed — fix it',()=>run(true),'');
+ add('Remix',()=>run());add('Fullscreen',()=>$('fr').requestFullscreen?.());
+ add('Download .html',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([last.html],{type:'text/html'}));a.download='tiny-game.html';a.click()});}
+async function run(fix){
+ const prompt=$('p').value.trim();if(!prompt)return;
+ $('go').disabled=true;$('m').style.display='grid';$('m').innerHTML='<div><span class="spin">🎲</span><br>Building your game… (10–40s)</div>';
+ try{
+  const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fix?{prompt,previousHtml:last.html,error:last.err}:{prompt})});
+  const j=await r.json();if(!r.ok)throw new Error(j.error);
+  last={prompt,html:j.html,err:''};
+  $('fr').srcdoc=j.html.replace(/<head[^>]*>/i,m=>m+BOOT).replace(/^(?![\s\S]*<head)/i,BOOT);
+  $('m').style.display='none';bar();setTimeout(()=>$('fr').focus(),300);
+ }catch(e){$('m').innerHTML='<div class="err">'+String(e.message).replace(/</g,'&lt;')+'</div>'}
+ $('go').disabled=false;}
+</script></body></html>
