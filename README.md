@@ -14,5 +14,5 @@ node server.js         # Node 18+, no npm install needed
 - If the game throws a runtime error, a "fix it" button sends the code and error back to the model.
 - Swap models/providers in `.env` (Groq, Gemini free tier, OpenRouter, local Ollama). Bigger models = better games; try `openai/gpt-oss-120b` on Groq for complex ones like golf.
 
-## Ideas next
-Share links, game history, remix ("make it harder"), streaming output.
+## License
+MIT. See [LICENSE](LICENSE).
