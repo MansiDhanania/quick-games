@@ -1,4 +1,4 @@
-// Zero-dependency server. Keeps the API key on the backend and never exposes it to games.
+// Zero-dependency server. Keeps the API key on the backend.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';

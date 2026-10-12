@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tiny Games</title>
+<title>Quick Games</title>
 <style>
 :root{--bg:#171028;--panel:#241a3d;--ink:#f6efff;--dim:#a99bc9;--pink:#ff4f8b;--mint:#3ee6b0;--sun:#ffd23f}
 *{box-sizing:border-box}
@@ -26,7 +26,7 @@ iframe{width:100%;height:100%;border:0;display:block}
 .err{color:#ffb3c9}
 @media (prefers-reduced-motion:no-preference){.spin{animation:s 1s linear infinite;display:inline-block}@keyframes s{to{transform:rotate(360deg)}}}
 </style></head><body>
-<h1>Tiny <span>Games</span></h1>
+<h1>Quick <span>Games</span></h1>
 <p class="sub">Describe a game. Get one you can play in about 20 seconds.</p>
 <form id="f"><input id="p" maxlength="300" placeholder="a raccoon stealing snacks from a supermarket" autofocus><button id="go">Make game</button></form>
 <div class="gallery" id="g"></div>
@@ -46,7 +46,7 @@ function bar(crashed){const b=$('bar');b.innerHTML='';
  const add=(t,fn,c='alt')=>{const x=document.createElement('button');x.className=c;x.textContent=t;x.onclick=fn;b.append(x)};
  if(crashed)add('Game crashed — fix it',()=>run(true),'');
  add('Remix',()=>run());add('Fullscreen',()=>$('fr').requestFullscreen?.());
- add('Download .html',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([last.html],{type:'text/html'}));a.download='tiny-game.html';a.click()});}
+ add('Download .html',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([last.html],{type:'text/html'}));a.download='quick-games.html';a.click()});}
 async function run(fix){
  const prompt=$('p').value.trim();if(!prompt)return;
  $('go').disabled=true;$('m').style.display='grid';$('m').innerHTML='<div><span class="spin">🎲</span><br>Building your game… (10–40s)</div>';

@@ -1,5 +1,5 @@
 {
-  "name": "tiny-games",
+  "name": "quick-games",
   "version": "0.1.0",
   "description": "Type an idea, get a playable browser game. LLM-generated, sandboxed.",
   "type": "module",
