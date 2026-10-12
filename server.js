@@ -1,7 +1,8 @@
-// Zero-dependency server. Keeps the API key on the backend.
+// Zero-dependency server. Keeps the API key on the backend and never exposes it to games.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -26,6 +27,7 @@ Rules:
 - Controls: keyboard (arrows/WASD/Space) AND mouse/touch (pointer events) so it works on phones. Call preventDefault on game keys. Mouse-drag-to-aim is great for golf/slingshot style games.
 - Start on a title screen with a one-line goal and the controls; click/any key starts. Include score, a clear win/lose condition, escalating difficulty, a game-over screen, and instant restart (R / click).
 - Make it FUNNY and juicy: personality in the text, screen shake, particles, simple synthesized sounds via WebAudio (created only after the first user input, wrapped in try/catch).
+- Keep the WHOLE file compact: under ~300 lines, no comments, short names. A small game that works beats a big one that gets cut off.
 - Real game feel: simple but correct physics/collisions, forgiving hitboxes, 30-60 seconds per round. It must run without errors on first load. Prefer simple, robust code over ambitious code.`;
 
 const hits = new Map(); // naive per-IP rate limit: 10 requests/min
@@ -37,23 +39,40 @@ const limited = ip => {
 function extractHtml(t) {
   t = t.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/```(?:html)?/gi, '');
   const s = t.search(/<!doctype html|<html/i), e = t.toLowerCase().lastIndexOf('</html>');
-  if (s < 0) throw new Error('Model did not return an HTML document');
-  return e > s ? t.slice(s, e + 7) : t.slice(s) + '\n</body></html>';
+  if (s < 0) throw new Error('the model did not return an HTML document');
+  return e > s ? t.slice(s, e + 7) : t.slice(s); // never "repair" truncation silently; validate() catches it
 }
 
-async function generate({ prompt, previousHtml, error }) {
-  const messages = [{ role: 'system', content: SYSTEM }];
-  if (previousHtml && error) {
-    messages.push({ role: 'user', content: `Game idea: ${prompt}\n\nHere is your previous attempt:\n${previousHtml}\n\nIt crashed with: ${String(error).slice(0, 500)}\nReturn the full corrected HTML document.` });
-  } else messages.push({ role: 'user', content: `Game idea: ${prompt}` });
-  const r = await fetch(`${BASE}/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
-    body: JSON.stringify({ model: MODEL, messages, temperature: 0.8, max_tokens: 8000 }),
-  });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error?.message || `LLM request failed (${r.status})`);
-  return extractHtml(j.choices?.[0]?.message?.content || '');
+// Returns '' if the game looks runnable, else a short reason.
+function validate(html, finish) {
+  if (finish === 'length') return 'the output was cut off (too long)';
+  if (!/<\/html>\s*$/i.test(html.trim())) return 'the HTML was incomplete';
+  if ((html.match(/<script\b/gi) || []).length !== (html.match(/<\/script>/gi) || []).length) return 'a <script> tag was never closed';
+  for (const m of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
+    try { new vm.Script(m[1]); } catch (e) { return 'JavaScript syntax error: ' + e.message; }
+  }
+  return '';
+}
+
+async function generate({ prompt, error }) {
+  let problem = error ? String(error).slice(0, 300) : '';
+  for (let i = 0; i < 2; i++) { // one automatic retry
+    const user = `Game idea: ${prompt}` + (problem ? `\n\nA previous attempt failed: ${problem}. Write a fresh, complete, MORE COMPACT version (under 300 lines, no comments) and double-check that it runs.` : '');
+    const r = await fetch(`${BASE}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+      body: JSON.stringify({ model: MODEL, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: user }], temperature: 0.7, max_tokens: +process.env.MAX_TOKENS || 8000 }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error?.message || `LLM request failed (${r.status})`);
+    try {
+      const html = extractHtml(j.choices?.[0]?.message?.content || '');
+      problem = validate(html, j.choices?.[0]?.finish_reason);
+      if (!problem) return html;
+    } catch (e) { problem = e.message; }
+    console.log(`attempt ${i + 1} rejected: ${problem}`);
+  }
+  throw new Error(`The model kept returning a broken game (${problem}). Try again, or set a bigger LLM_MODEL in .env.`);
 }
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
@@ -68,7 +87,7 @@ http.createServer(async (req, res) => {
       const b = JSON.parse(raw || '{}');
       const prompt = String(b.prompt || '').trim().slice(0, 300);
       if (!prompt) return send(400, { error: 'Describe a game first.' });
-      const html = await generate({ prompt, previousHtml: b.previousHtml ? String(b.previousHtml).slice(0, 60000) : '', error: b.error });
+      const html = await generate({ prompt, error: b.error });
       return send(200, { html });
     }
     if (req.method === 'GET') {
@@ -79,4 +98,4 @@ http.createServer(async (req, res) => {
     }
     send(405, { error: 'Method not allowed' });
   } catch (e) { send(500, { error: e.message }); }
-}).listen(PORT, () => console.log(`Tiny Games running at http://localhost:${PORT}  (model: ${MODEL}${KEY ? '' : ', NO KEY SET'})`));
+}).listen(PORT, () => console.log(`Quick Games running at http://localhost:${PORT}  (model: ${MODEL}${KEY ? '' : ', NO KEY SET'})`));

@@ -36,7 +36,7 @@ iframe{width:100%;height:100%;border:0;display:block}
 const IDEAS=["🦝 A raccoon stealing snacks without waking the security guard","🐸 A frog crossing a road made of moving toasters","🪿 A goose defending its park from overly friendly tourists","🧙 A wizard whose spells randomly turn enemies into household objects","🎂 A cake decorating game where the cake keeps sliding away","⛳ Mini golf where you drag to aim, with windmills and a sassy ball","🐙 An octopus making sushi during a lunch rush"];
 const $=id=>document.getElementById(id);
 const BOOT=`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src data: blob:; connect-src 'none'; form-action 'none'">
-<script>addEventListener('error',e=>parent.postMessage({tg:'err',msg:(e.message||'error')+' (line '+e.lineno+')'},'*'));addEventListener('unhandledrejection',e=>parent.postMessage({tg:'err',msg:String(e.reason)},'*'));<\/script>`;
+<script>addEventListener('error',e=>parent.postMessage({tg:'err',msg:(e.message||'error')+' (line '+e.lineno+')'},'*'));addEventListener('unhandledrejection',e=>parent.postMessage({tg:'err',msg:String(e.reason)},'*'));addEventListener('load',()=>setTimeout(()=>{try{var c=document.querySelector('canvas');if(!c)throw 0;var d=c.getContext('2d').getImageData(0,0,c.width,c.height).data,ok=0;for(var i=3;i<d.length;i+=40)if(d[i]){ok=1;break}if(!ok)parent.postMessage({tg:'err',msg:'Nothing rendered on the canvas'},'*')}catch(e){if(e===0)parent.postMessage({tg:'err',msg:'No canvas found'},'*')}},1500));<\/script>`;
 let last={prompt:'',html:'',err:''};
 IDEAS.forEach(t=>{const b=document.createElement('button');b.type='button';b.className='alt chip';b.textContent=t;b.onclick=()=>{$('p').value=t.replace(/^\S+\s/,'');run()};$('g').append(b)});
 $('f').onsubmit=e=>{e.preventDefault();run()};
@@ -44,14 +44,14 @@ addEventListener('message',e=>{if(e.source===$('fr').contentWindow&&e.data?.tg==
 function bar(crashed){const b=$('bar');b.innerHTML='';
  if(!last.html)return;
  const add=(t,fn,c='alt')=>{const x=document.createElement('button');x.className=c;x.textContent=t;x.onclick=fn;b.append(x)};
- if(crashed)add('Game crashed — fix it',()=>run(true),'');
+ add(crashed?'Game broke — fix it':'Not working? Fix it',()=>run(true),crashed?'':'alt');
  add('Remix',()=>run());add('Fullscreen',()=>$('fr').requestFullscreen?.());
- add('Download .html',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([last.html],{type:'text/html'}));a.download='quick-games.html';a.click()});}
+ add('Download .html',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([last.html],{type:'text/html'}));a.download='quick-game.html';a.click()});}
 async function run(fix){
  const prompt=$('p').value.trim();if(!prompt)return;
  $('go').disabled=true;$('m').style.display='grid';$('m').innerHTML='<div><span class="spin">🎲</span><br>Building your game… (10–40s)</div>';
  try{
-  const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fix?{prompt,previousHtml:last.html,error:last.err}:{prompt})});
+  const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fix?{prompt,error:last.err||'the game did not render or play correctly'}:{prompt})});
   const j=await r.json();if(!r.ok)throw new Error(j.error);
   last={prompt,html:j.html,err:''};
   $('fr').srcdoc=j.html.replace(/<head[^>]*>/i,m=>m+BOOT).replace(/^(?![\s\S]*<head)/i,BOOT);
