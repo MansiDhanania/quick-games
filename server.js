@@ -59,7 +59,7 @@ async function generate({ prompt, previousHtml, error }) {
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
 
 http.createServer(async (req, res) => {
-  const send = (code, body, type = 'application/json') => { res.writeHead(code, { 'Content-Type': type }); res.end(typeof body === 'string' ? body : JSON.stringify(body)); };
+  const send = (code, body, type = 'application/json') => { res.writeHead(code, { 'Content-Type': type }); res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body)); };
   try {
     if (req.method === 'POST' && req.url === '/api/generate') {
       if (!KEY) return send(500, { error: 'No LLM_API_KEY set. Copy .env.example to .env and add a key.' });
